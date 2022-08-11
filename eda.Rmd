@@ -1,0 +1,57 @@
+---
+title: "Water Potability EDA"
+author: "Alicia Key"
+date: "2022-08-11"
+output: html_document
+---
+
+# Water Potability EDA
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r include=FALSE}
+library(readr)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+```
+
+## Load the data
+
+```{r}
+water <- read_csv("data/water_potability.csv")
+knitr::kable(head(water))
+```
+
+## Fill NA values
+
+There are a lot of NA values. Let's fix that. Fill all NA values in a column with the median value in that column. Also, lower case all column names.
+
+For the potability column, convert it into a factor with human readable names. For work in tidymodels, the first level of the factor is the event of interest. In this case, the event of interest is potable water.
+
+```{r}
+water_clean <- water %>%
+  transmute(
+    pH = replace_na(median(ph, na.rm = TRUE)),
+    hardness = replace_na(median(Hardness, na.rm = TRUE)),
+    solids = replace_na(median(Solids, na.rm = TRUE)),
+    chloramines = replace_na(median(Chloramines, na.rm = TRUE)),
+    sulfate = replace_na(median(Sulfate, na.rm = TRUE)),
+    conductivity = replace_na(median(Conductivity, na.rm = TRUE)),
+    organic_carbon = replace_na(median(Organic_carbon, na.rm = TRUE)),
+    trihalomethanes = replace_na(median(Trihalomethanes, na.rm = TRUE)),
+    turbidity = replace_na(median(Turbidity, na.rm = TRUE)),
+    potability = factor(
+      case_when(
+        Potability == 1 ~ "potable",
+        Potability == 0 ~ "not potable"
+      ),
+      levels = c("potable", "not potable")
+    )
+  )
+
+knitr::kable(head(water_clean))
+```
+
