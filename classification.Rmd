@@ -16,6 +16,7 @@ library(readr)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(gridExtra)
 ```
 
 ## Load the data and clean it
@@ -34,39 +35,52 @@ There are a lot of NA values. Let's fix that. Fill all NA values in a column wit
 For the potability column, convert it into a factor with human readable names. For work in tidymodels, the first level of the factor is the event of interest. In this case, the event of interest is potable water.
 
 ```{r}
+ph_median <- median(water$ph, na.rm = TRUE)
+hardness_median <- median(water$Hardness, na.rm = TRUE)
+solids_median <- median(water$Solids, na.rm = TRUE)
+chloramines_median <- median(water$Chloramines, na.rm = TRUE)
+sulfate_median <- median(water$Sulfate, na.rm = TRUE)
+conductivity_median <- median(water$Conductivity, na.rm = TRUE)
+organic_carbon_median <- median(water$Organic_carbon, na.rm = TRUE)
+trihalomethanes_median <- median(water$Trihalomethanes, na.rm = TRUE)
+turbidity_median <- median(water$Turbidity, na.rm = TRUE)
+
 water_clean <- water %>%
-  transmute(
-    pH = replace_na(median(ph, na.rm = TRUE)),
-    hardness = replace_na(median(Hardness, na.rm = TRUE)),
-    solids = replace_na(median(Solids, na.rm = TRUE)),
-    chloramines = replace_na(median(Chloramines, na.rm = TRUE)),
-    sulfate = replace_na(median(Sulfate, na.rm = TRUE)),
-    conductivity = replace_na(median(Conductivity, na.rm = TRUE)),
-    organic_carbon = replace_na(median(Organic_carbon, na.rm = TRUE)),
-    trihalomethanes = replace_na(median(Trihalomethanes, na.rm = TRUE)),
-    turbidity = replace_na(median(Turbidity, na.rm = TRUE)),
-    potability = factor(
+  replace_na(list(
+    ph = ph_median,
+    Hardness = hardness_median,
+    Solids = solids_median,
+    Chloramines = chloramines_median,
+    Sulfate = sulfate_median,
+    Conductivity = conductivity_median,
+    Organic_carbon = organic_carbon_median,
+    Trihalomethanes = trihalomethanes_median,
+    Turbidity = turbidity_median
+  )) %>%
+  mutate(
+    potability_factor = factor(
       case_when(
         Potability == 1 ~ "potable",
         Potability == 0 ~ "not potable"
       ),
       levels = c("potable", "not potable")
     )
-  )
+  ) %>%
+  select(-Potability)
 
 knitr::kable(head(water_clean))
 ```
 
 ## Exploratory visualization
 
-What is the distribution of classes?
+### Counts of each class
 
 ```{r}
 class_counts <- tibble(
   potability = c("potable", "not potable"),
   class_count = c(
-    sum(water_clean$potability == "potable"),
-    sum(water_clean$potability == "not potable")
+    sum(water_clean$potability_factor == "potable"),
+    sum(water_clean$potability_factor == "not potable")
   )
 )
 
@@ -76,4 +90,8 @@ ggplot(class_counts, aes(x = potability, y = class_count)) +
   ylab("class count")
 ```
 
+## Write .csv for analysis in Tableau
 
+```{r}
+write_csv(water_clean, "data/water_clean.csv")
+```
