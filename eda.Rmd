@@ -18,14 +18,16 @@ library(tidyr)
 library(ggplot2)
 ```
 
-## Load the data
+## Load the data and clean it
+
+### Initial load of raw data
 
 ```{r}
 water <- read_csv("data/water_potability.csv")
 knitr::kable(head(water))
 ```
 
-## Fill NA values
+### Fill NA values
 
 There are a lot of NA values. Let's fix that. Fill all NA values in a column with the median value in that column. Also, lower case all column names.
 
@@ -54,4 +56,24 @@ water_clean <- water %>%
 
 knitr::kable(head(water_clean))
 ```
+
+## Exploratory visualization
+
+What is the distribution of classes?
+
+```{r}
+class_counts <- tibble(
+  potability = c("potable", "not potable"),
+  class_count = c(
+    sum(water_clean$potability == "potable"),
+    sum(water_clean$potability == "not potable")
+  )
+)
+
+ggplot(class_counts, aes(x = potability, y = class_count)) +
+  geom_col() +
+  ggtitle("Counts of each class in dataset") +
+  ylab("class count")
+```
+
 
