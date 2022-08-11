@@ -46,3 +46,6 @@ vignettes/*.pdf
 
 # Ignore intermediate html files
 *.html
+
+# Ignore intermediate file to be visualized in Tableau
+data/water_clean.csv
