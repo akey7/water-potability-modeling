@@ -15,8 +15,12 @@ knitr::opts_chunk$set(echo = TRUE)
 library(readr)
 library(dplyr)
 library(tidyr)
+library(rsample)
+library(parsnip)
+library(yardstick)
+library(broom)
 library(ggplot2)
-library(gridExtra)
+library(tune)
 ```
 
 ## Load the data and clean it
@@ -90,8 +94,76 @@ ggplot(class_counts, aes(x = potability, y = class_count)) +
   ylab("class count")
 ```
 
-## Write .csv for analysis in Tableau
+## Classification test
+
+### Train test split
 
 ```{r}
-write_csv(water_clean, "data/water_clean.csv")
+water_split <- initial_split(water_clean, prop = 0.75, strata = potability_factor)
 ```
+
+Number of rows in training set:
+
+```{r}
+nrow(water_train)
+```
+
+Number of rows in testing set:
+
+```{r}
+nrow(water_test)
+```
+
+### Create the logistic regression model
+
+```{r}
+logistic_model <- logistic_reg() %>%
+  set_engine("glm") %>%
+  set_mode("classification")
+```
+
+### Fit the model
+
+```{r}
+logistic_last_fit <- logistic_model %>%
+  last_fit(potability_factor ~ ., split = water_split)
+```
+
+## Evaluate model performance
+
+### Collect ROC AUC and accuracy metrics.
+
+```{r}
+logistic_last_fit %>%
+  collect_metrics() %>%
+  knitr::kable()
+```
+
+### Collect predictions
+
+Collecting predictions allows us to calculate metrics of model performance.
+
+```{r}
+logistic_last_fit_results <- logistic_last_fit %>%
+  collect_predictions()
+```
+
+### Plot ROC curve
+
+```{r}
+logistic_last_fit_results %>%
+  roc_curve(truth = potability_factor, .pred_potable) %>%
+  autoplot()
+```
+
+That is bad! Almost like tossing a coin.
+
+### Mosaic plot
+
+```{r}
+logistic_last_fit_results %>%
+  conf_mat(truth = potability_factor, estimate = .pred_class) %>%
+  autoplot(type = "mosaic")
+```
+
+
