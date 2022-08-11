@@ -166,4 +166,8 @@ logistic_last_fit_results %>%
   autoplot(type = "mosaic")
 ```
 
+The height of section bounded by the "not potable" row and the "not potable" column means the model was good at guessing water samples that were "not potable" correctly, but guessed that almost no samples were potable.
 
+## Next steps
+
+I need to find another way of filling missing values and then try re-running the model.
