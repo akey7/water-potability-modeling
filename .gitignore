@@ -44,3 +44,5 @@ vignettes/*.pdf
 # Ignore macOS stuff
 .DS_Store
 
+# Ignore intermediate html files
+*.html
