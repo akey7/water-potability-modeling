@@ -37,3 +37,10 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Ignore the R project stuff
+*.Rproj
+
+# Ignore macOS stuff
+.DS_Store
+
