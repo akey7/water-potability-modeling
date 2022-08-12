@@ -170,6 +170,8 @@ decision_tree_final_fit %>%
 
 ### Final ROC curve
 
+Not too great...an ROC AUC of 0.59 is barely better than a coin toss.
+
 ```{r}
 decision_tree_final_fit %>%
   collect_predictions() %>%
