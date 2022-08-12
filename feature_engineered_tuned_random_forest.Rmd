@@ -17,6 +17,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(readr)
 library(dplyr)
 library(tidyr)
+library(ggplot2)
 ```
 
 ## Initial data load
@@ -37,15 +38,6 @@ Inspired by [https://towardsdatascience.com/missing-value-visualization-with-tid
 ```{r}
 water_total_rows = nrow(water)
 
-# water_missing <- water %>%
-#   pivot_longer(everything(), names_to = "name", values_to = "value") %>%
-#   mutate(is_missing = is.na(value)) %>%
-#   group_by(name, is_missing) %>%
-#   summarize(num_missing = n()) %>%
-#   filter(is_missing) %>%
-#   select(-is_missing) %>%
-#   arrange(desc(num_missing))
-
 water_missing <- water %>%
   pivot_longer(everything(), names_to = "name", values_to = "value") %>%
   mutate(is_missing = is.na(value)) %>%
@@ -55,5 +47,8 @@ water_missing <- water %>%
   transmute(
     percent_missing = num_missing / water_total_rows * 100
   ) %>%
-  arrange(desc(percent_missing))
+  rename(variable = name)
+
+ggplot(water_missing, aes(x = variable, y = percent_missing)) +
+  geom_col()
 ```
