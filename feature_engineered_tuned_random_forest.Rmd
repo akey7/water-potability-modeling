@@ -11,13 +11,28 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## Load required software
+## Required libraries and random seed
+
+### Required libraries
 
 ```{r}
 library(readr)
 library(dplyr)
 library(tidyr)
 library(ggplot2)
+library(rsample)
+library(parsnip)
+library(yardstick)
+library(broom)
+library(ggplot2)
+library(tune)
+library(recipes)
+```
+
+### Random seed
+
+```{r}
+set.seed(123)
 ```
 
 ## Initial data load
@@ -29,11 +44,9 @@ knitr::kable(head(water))
 
 ## Feature engineering
 
-### Missing values
+### Visualizing number of missing values.
 
-#### Visualizing missing values.
-
-Inspired by [https://towardsdatascience.com/missing-value-visualization-with-tidyverse-in-r-a9b0fefd2246](https://towardsdatascience.com/missing-value-visualization-with-tidyverse-in-r-a9b0fefd2246)
+Modified from [https://towardsdatascience.com/missing-value-visualization-with-tidyverse-in-r-a9b0fefd2246](https://towardsdatascience.com/missing-value-visualization-with-tidyverse-in-r-a9b0fefd2246)
 
 ```{r}
 water_total_rows = nrow(water)
@@ -47,8 +60,62 @@ water_missing <- water %>%
   transmute(
     percent_missing = num_missing / water_total_rows * 100
   ) %>%
-  rename(variable = name)
+  rename(variable = name) %>%
+  arrange(desc(percent_missing))
 
+knitr::kable(water_missing)
+```
+
+```{r}
 ggplot(water_missing, aes(x = variable, y = percent_missing)) +
   geom_col()
+```
+
+### Turn potability into a factor
+
+Call the factor `potable`. The event of interest, potable water, is the first level of the factor.
+
+```{r}
+water_2 <- water %>%
+  mutate(potable = factor(
+      case_when(
+        Potability == 0 ~ "not potable",
+        Potability == 1 ~ "potable"
+      ),
+      levels = c("potable", "not potable")
+    )
+  ) %>%
+  select(-Potability)
+
+knitr::kable(head(water_2))
+```
+
+### Train test split
+
+```{r}
+water_split <- initial_split(water_2, prop = 0.75, strata = potable)
+
+water_train <- water_split %>%
+  training()
+
+water_test <- water_split %>%
+  testing()
+```
+
+### Recipe to preprocess values
+
+- Handle missing values with kNN
+
+```{r}
+clean_water_recipe <- recipe(potable ~ ., data = water_train) %>%
+  step_impute_knn(all_predictors(), neighbors = 5)
+
+clean_water_prep <- clean_water_recipe %>%
+  prep(training = water_train)
+
+clean_water_train <- clean_water_prep %>%
+  bake(new_data = NULL)
+
+clean_water_test <- clean_water_prep %>%
+  bake(new_data = water_test)
 ```
