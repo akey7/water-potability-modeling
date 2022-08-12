@@ -29,6 +29,7 @@ library(tune)
 library(recipes)
 library(workflows)
 library(dials)
+library(parallel)
 ```
 
 ### Random seed
@@ -96,23 +97,21 @@ knitr::kable(head(water_2))
 
 ```{r}
 water_split <- initial_split(water_2, prop = 0.75, strata = potable)
-
-water_train <- water_split %>%
-  training()
-
-water_test <- water_split %>%
-  testing()
+water_train <- training(water_split)
+water_test <- testing(water_split)
 ```
 
 ### Recipe to preprocess values
 
 - Handle missing values with kNN
+- Remove correlated variables
+- Normalize all numeric values
 
 ```{r}
 clean_water_recipe <- recipe(potable ~ ., data = water_train) %>%
-  step_impute_knn(all_numeric_predictors(), neighbors = 5) %>%
-  step_corr(all_numeric_predictors(), threshold = 0.8)
-  step_normalize(all_predictors())
+  step_impute_knn(all_numeric(), neighbors = 10) %>%
+  step_corr(all_numeric(), threshold = 0.8) %>%
+  step_normalize(all_numeric())
 ```
 
 ## Tuned decision tree
@@ -120,7 +119,7 @@ clean_water_recipe <- recipe(potable ~ ., data = water_train) %>%
 ### k-fold cross validation
 
 ```{r}
-water_folds <- vfold_cv(water_train, v = 5, strata = potable)
+water_folds <- vfold_cv(water_train, v = 10, strata = potable)
 ```
 
 ### Decision tree workflow and grid
@@ -138,12 +137,14 @@ decision_tree_workflow <- workflow() %>%
   add_model(decision_tree_model) %>%
   add_recipe(clean_water_recipe)
 
-decision_tree_grid <- grid_random(parameters(decision_tree_model), size = 5)
+decision_tree_grid <- grid_random(parameters(decision_tree_model), size = 20)
 ```
 
 ### Tune the model
 
 ```{r}
+doParallel::registerDoParallel()
+
 decision_tree_tuning <- decision_tree_workflow %>%
   tune_grid(
     resamples = water_folds,
@@ -156,7 +157,7 @@ decision_tree_tuning <- decision_tree_workflow %>%
 
 ```{r}
 best_decision_tree_model <- decision_tree_tuning %>%
-  select_best(metric = "roc_auc")
+  select_best(metric = "sens")
 
 final_decision_tree_workflow <- decision_tree_workflow %>%
   finalize_workflow(best_decision_tree_model)
