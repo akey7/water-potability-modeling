@@ -1,0 +1,59 @@
+---
+title: "Water Potability"
+author: "Alicia Key"
+date: "2022-08-12"
+output: html_document
+---
+
+# Water potability modeling
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Load required software
+
+```{r}
+library(readr)
+library(dplyr)
+library(tidyr)
+```
+
+## Initial data load
+
+```{r}
+water <- read_csv("data/water_potability.csv")
+knitr::kable(head(water))
+```
+
+## Feature engineering
+
+### Missing values
+
+#### Visualizing missing values.
+
+Inspired by [https://towardsdatascience.com/missing-value-visualization-with-tidyverse-in-r-a9b0fefd2246](https://towardsdatascience.com/missing-value-visualization-with-tidyverse-in-r-a9b0fefd2246)
+
+```{r}
+water_total_rows = nrow(water)
+
+# water_missing <- water %>%
+#   pivot_longer(everything(), names_to = "name", values_to = "value") %>%
+#   mutate(is_missing = is.na(value)) %>%
+#   group_by(name, is_missing) %>%
+#   summarize(num_missing = n()) %>%
+#   filter(is_missing) %>%
+#   select(-is_missing) %>%
+#   arrange(desc(num_missing))
+
+water_missing <- water %>%
+  pivot_longer(everything(), names_to = "name", values_to = "value") %>%
+  mutate(is_missing = is.na(value)) %>%
+  group_by(name, is_missing) %>%
+  summarize(num_missing = n()) %>%
+  filter(is_missing) %>%
+  transmute(
+    percent_missing = num_missing / water_total_rows * 100
+  ) %>%
+  arrange(desc(percent_missing))
+```
