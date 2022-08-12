@@ -27,6 +27,8 @@ library(broom)
 library(ggplot2)
 library(tune)
 library(recipes)
+library(workflows)
+library(dials)
 ```
 
 ### Random seed
@@ -108,67 +110,74 @@ water_test <- water_split %>%
 
 ```{r}
 clean_water_recipe <- recipe(potable ~ ., data = water_train) %>%
-  step_impute_knn(all_predictors(), neighbors = 5)
-
-clean_water_prep <- clean_water_recipe %>%
-  prep(training = water_train)
-
-clean_water_train <- clean_water_prep %>%
-  bake(new_data = NULL)
-
-clean_water_test <- clean_water_prep %>%
-  bake(new_data = water_test)
+  step_impute_knn(all_numeric_predictors(), neighbors = 5) %>%
+  step_corr(all_numeric_predictors(), threshold = 0.8)
+  step_normalize(all_predictors())
 ```
 
-## Simple logistic regression
+## Tuned decision tree
 
-### Train the logistic model and obtain its predictions
+### k-fold cross validation
 
 ```{r}
-logistic_model <- logistic_reg() %>%
-  set_engine("glm") %>%
+water_folds <- vfold_cv(water_train, v = 5, strata = potable)
+```
+
+### Decision tree workflow and grid
+
+```{r}
+decision_tree_model <- decision_tree(
+    cost_complexity = tune(),
+    tree_depth = tune(),
+    min_n = tune()
+  ) %>%
+  set_engine("rpart") %>%
   set_mode("classification")
 
-logistic_fit <- logistic_model %>%
-  fit(potable ~ ., data = clean_water_train)
+decision_tree_workflow <- workflow() %>%
+  add_model(decision_tree_model) %>%
+  add_recipe(clean_water_recipe)
 
-logistic_class_preds <- logistic_fit %>%
-  predict(new_data = clean_water_test, type = "class")
-
-logistic_class_probs <- logistic_fit %>%
-  predict(new_data = clean_water_test, type = "prob")
-
-logistic_results <- clean_water_test %>%
-  select(potable) %>%
-  bind_cols(logistic_class_preds, logistic_class_probs)
+decision_tree_grid <- grid_random(parameters(decision_tree_model), size = 5)
 ```
 
-### Get table of metrics for logistic model
-
-Uh-oh, not looking good...
+### Tune the model
 
 ```{r}
-conf_mat(logistic_results, truth = potable, estimate = .pred_class) %>%
-  summary()
+decision_tree_tuning <- decision_tree_workflow %>%
+  tune_grid(
+    resamples = water_folds,
+    grid = decision_tree_grid,
+    metrics = metric_set(roc_auc, sens, spec)
+  )
 ```
 
-### Mosaic plot
+### Fit the best model
 
 ```{r}
-conf_mat(logistic_results, truth = potable, estimate = .pred_class) %>%
-  autoplot(type = "mosaic")
+best_decision_tree_model <- decision_tree_tuning %>%
+  select_best(metric = "roc_auc")
+
+final_decision_tree_workflow <- decision_tree_workflow %>%
+  finalize_workflow(best_decision_tree_model)
+
+decision_tree_final_fit <- final_decision_tree_workflow %>%
+  last_fit(split = water_split)
 ```
 
-### ROC AUC
-
-ROC plot:
-
-A disaster!
+### Final decision tree model assesment
 
 ```{r}
-logistic_results %>%
+decision_tree_final_fit %>%
+  collect_metrics()
+```
+
+### Final ROC curve
+
+```{r}
+decision_tree_final_fit %>%
+  collect_predictions() %>%
   roc_curve(truth = potable, .pred_potable) %>%
   autoplot()
 ```
-
 
