@@ -29,7 +29,6 @@ library(tune)
 library(recipes)
 library(workflows)
 library(dials)
-library(parallel)
 ```
 
 ### Random seed
@@ -104,14 +103,10 @@ water_test <- testing(water_split)
 ### Recipe to preprocess values
 
 - Handle missing values with kNN
-- Remove correlated variables
-- Normalize all numeric values
 
 ```{r}
 clean_water_recipe <- recipe(potable ~ ., data = water_train) %>%
-  step_impute_knn(all_numeric(), neighbors = 10) %>%
-  step_corr(all_numeric(), threshold = 0.8) %>%
-  step_normalize(all_numeric())
+  step_impute_knn(all_numeric(), neighbors = 10)
 ```
 
 ## Tuned decision tree
@@ -119,7 +114,7 @@ clean_water_recipe <- recipe(potable ~ ., data = water_train) %>%
 ### k-fold cross validation
 
 ```{r}
-water_folds <- vfold_cv(water_train, v = 10, strata = potable)
+water_folds <- vfold_cv(water_train, v = 20, strata = potable)
 ```
 
 ### Decision tree workflow and grid
