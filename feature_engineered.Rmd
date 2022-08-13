@@ -182,7 +182,7 @@ ggplot(clean_water, aes(x = potable, y = Turbidity)) +
 ### k-fold cross validation
 
 ```{r}
-water_folds <- vfold_cv(water_train, v = 50, strata = potable)
+water_folds <- vfold_cv(water_train, v = 20, strata = potable)
 ```
 
 ### Decision tree workflow and grid
@@ -200,7 +200,7 @@ decision_tree_workflow <- workflow() %>%
   add_model(decision_tree_model) %>%
   add_recipe(clean_water_recipe)
 
-decision_tree_grid <- grid_random(parameters(decision_tree_model), size = 20)
+decision_tree_grid <- grid_random(parameters(decision_tree_model), size = 10)
 ```
 
 ### Tune the decision tree
@@ -231,7 +231,7 @@ decision_tree_final_fit <- final_decision_tree_workflow %>%
 
 ### Final decision tree assesment
 
-The decision tree ROC AUC of 0.59 is not good. It is barely better than a coin toss!
+The decision tree ROC AUC of 0.63 is not good. It is barely better than a coin toss!
 
 ```{r}
 decision_tree_final_fit %>%
