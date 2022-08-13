@@ -27,16 +27,14 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Required libraries
 
-```{r, echo=TRUE, results='hide'}
+```{r, echo=TRUE, warning=FALSE}
 library(readr)
 library(dplyr)
 library(tidyr)
-library(forcats)
 library(ggplot2)
 library(rsample)
 library(parsnip)
 library(yardstick)
-library(broom)
 library(ggplot2)
 library(tune)
 library(recipes)
@@ -70,7 +68,7 @@ According to the [Kaggle post](https://www.kaggle.com/datasets/adityakadiwal/wat
 | Turbidity | Measure of light emitting property of water in NTU. |
 | Potability | Indicates if water is safe for human consumption. Potable=1 and Not potable=0 |
 
-```{r}
+```{r, warning=FALSE}
 water <- read_csv("data/water_potability.csv")
 knitr::kable(head(water))
 ```
@@ -83,7 +81,7 @@ For this analysis, I made two changes to the dataset.
 
 First, I had to fill in many missing values. I modified the approach in the article [Missing Value Visualization](https://towardsdatascience.com/missing-value-visualization-with-tidyverse-in-r-a9b0fefd2246) to create a visualization of the percent of missing values for three dataset columns.
 
-```{r}
+```{r, warning=FALSE}
 water_total_rows = nrow(water)
 
 water_missing <- water %>%
@@ -103,8 +101,11 @@ knitr::kable(water_missing)
 
 ```{r}
 ggplot(water_missing, aes(x = variable, y = percent_missing)) +
-  geom_col()
-  # Add a label indicating higher is worse.
+  geom_col() +
+  labs(
+    title = "Percentage of values missing",
+    subtitle = "Higher is worse"
+  )
 ```
 
 ### Transform `Potability` into a factor
@@ -169,7 +170,10 @@ knitr::kable(clean_water_class_count)
 ```{r}
 ggplot(clean_water_class_count, aes(x = potable, y = class_count)) +
   geom_col() +
-  ggtitle("Class count in entire dataset")
+  labs(
+      title = "Class count in entire dataset",
+      subtitle = "Equal heights are better"
+    )
 ```
 
 ### Distributions variables depending on potability
@@ -247,7 +251,7 @@ water_folds <- vfold_cv(water_train, v = 20, strata = potable)
 I gather ROC AUC, sensitivity, and specificity metrics for each fold and hyperparameter combination during training.
 
 ```{r}
-# TODO: Fill this in
+common_metric_set <- metric_set(roc_auc, sens, spec)
 ```
 
 ## Logistic classifier
@@ -295,7 +299,7 @@ The second classifier I trained was a decision tree. Here, there were `cost_comp
 
 ### Decision tree workflow and grid
 
-```{r}
+```{r, warning=FALSE}
 decision_tree_model <- decision_tree(
     cost_complexity = tune(),
     tree_depth = tune(),
@@ -320,7 +324,7 @@ decision_tree_tuning <- decision_tree_workflow %>%
   tune_grid(
     resamples = water_folds,
     grid = decision_tree_grid,
-    metrics = metric_set(roc_auc, sens, spec)
+    metrics = common_metric_set
   )
 ```
 
@@ -367,7 +371,7 @@ The third classifier I trained was an xgboost model. Here, there were the `trees
 
 Define the model and the workflow to go with it.
 
-```{r}
+```{r, warning=FALSE}
 xgboost_model <- 
   boost_tree(
     trees = tune(), 
@@ -397,7 +401,7 @@ xgboost_tuning <- xgboost_workflow %>%
   tune_grid(
     resamples = water_folds,
     grid = xgboost_grid,
-    metrics = metric_set(roc_auc, sens, spec)
+    metrics = common_metric_set
   )
 ```
 
@@ -416,7 +420,7 @@ xgboost_final_fit <- final_xgboost_workflow %>%
 
 ### Evaluate xgboost performance
 
-With a ROC AUC of 0.66, the xgboost outperforms the decision tree, but not by much.
+With a ROC AUC of 0.65, the xgboost outperforms the decision tree, but not by much.
 
 ```{r}
 xgboost_final_fit_metrics <- xgboost_final_fit %>%
@@ -460,9 +464,11 @@ knitr::kable(comparison)
 ```{r}
 ggplot(comparison, aes(x = model, y = roc_auc)) +
   geom_col() +
-  ggtitle("Comparison of xgboost and decision tree ROC AUC metrics") +
-  labs(y = "ROC AUC")
-  # TODO indicate that higher is better
+  labs(
+    y = "ROC AUC",
+    title = "Comparison of xgboost and decision tree ROC AUC metrics",
+    subtitle = "Higher is better"
+  )
 ```
 
 ## Conclusion and next steps
