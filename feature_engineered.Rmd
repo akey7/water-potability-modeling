@@ -19,6 +19,7 @@ knitr::opts_chunk$set(echo = TRUE)
 library(readr)
 library(dplyr)
 library(tidyr)
+library(forcats)
 library(ggplot2)
 library(rsample)
 library(parsnip)
@@ -382,7 +383,10 @@ xgboost_final_fit %>%
 
 ```{r}
 comparison <- tibble(
-    model = c("xgboost", "decision tree", "logistic"),
+    model = factor(
+      c("xgboost", "decision tree", "logistic"),
+      levels = c("xgboost", "decision tree", "logistic")
+    ),
     roc_auc = c(
       xgboost_final_fit_roc_auc, 
       decision_tree_final_fit_roc_auc,
@@ -397,5 +401,6 @@ knitr::kable(comparison)
 ```{r}
 ggplot(comparison, aes(x = model, y = roc_auc)) +
   geom_col() +
-  ggtitle("Comparison of xgboost and decision tree ROC AUC metrics")
+  ggtitle("Comparison of xgboost and decision tree ROC AUC metrics") +
+  labs(y = "ROC AUC")
 ```
