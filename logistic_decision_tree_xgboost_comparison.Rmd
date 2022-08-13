@@ -27,7 +27,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Required libraries
 
-```{r, echo=TRUE, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 library(readr)
 library(dplyr)
 library(tidyr)
@@ -68,7 +68,7 @@ According to the [Kaggle post](https://www.kaggle.com/datasets/adityakadiwal/wat
 | Turbidity | Measure of light emitting property of water in NTU. |
 | Potability | Indicates if water is safe for human consumption. Potable=1 and Not potable=0 |
 
-```{r, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 water <- read_csv("data/water_potability.csv")
 knitr::kable(head(water))
 ```
@@ -81,7 +81,7 @@ For this analysis, I made two changes to the dataset.
 
 First, I had to fill in many missing values. I modified the approach in the article [Missing Value Visualization](https://towardsdatascience.com/missing-value-visualization-with-tidyverse-in-r-a9b0fefd2246) to create a visualization of the percent of missing values for three dataset columns.
 
-```{r, warning=FALSE}
+```{r, message=FALSE, warning=FALSE}
 water_total_rows = nrow(water)
 
 water_missing <- water %>%
