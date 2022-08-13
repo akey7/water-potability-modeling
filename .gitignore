@@ -37,3 +37,15 @@ vignettes/*.pdf
 
 # R Environment Variables
 .Renviron
+
+# Ignore the R project stuff
+*.Rproj
+
+# Ignore macOS stuff
+.DS_Store
+
+# Ignore intermediate html files
+*.html
+
+# Ignore intermediate file to be visualized in Tableau
+data/water_clean.csv
