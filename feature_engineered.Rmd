@@ -29,6 +29,7 @@ library(tune)
 library(recipes)
 library(workflows)
 library(dials)
+library(gridExtra)
 ```
 
 ### Random seed
@@ -97,10 +98,9 @@ knitr::kable(head(water_2))
 ```{r}
 water_split <- initial_split(water_2, prop = 0.75, strata = potable)
 water_train <- training(water_split)
-water_test <- testing(water_split)
 ```
 
-### Recipe to preprocess values
+### Recipe to preprocess data and fill missing values
 
 - Handle missing values with kNN
 
@@ -109,12 +109,80 @@ clean_water_recipe <- recipe(potable ~ ., data = water_train) %>%
   step_impute_knn(all_numeric(), neighbors = 10)
 ```
 
-## Tuned decision tree
+## Exploratory visualization
+
+First, get a copy of the *all* data with the missing values filled in to use in the visualizations.
+
+```{r}
+clean_water <- clean_water_recipe %>%
+  prep(training = water_train) %>%
+  bake(new_data = water_2)
+```
+
+### Distributions variables depending on potability
+
+Visualize these as violin plots.
+
+```{r}
+ggplot(clean_water, aes(x = potable, y = ph)) +
+  geom_violin() +
+  ggtitle("pH")
+```
+
+```{r}
+ggplot(clean_water, aes(x = potable, y = Hardness)) +
+  geom_violin() +
+  ggtitle("Hardness")
+```
+
+```{r}
+ggplot(clean_water, aes(x = potable, y = Solids)) +
+  geom_violin() +
+  ggtitle("Solids")
+```
+
+```{r}
+ggplot(clean_water, aes(x = potable, y = Chloramines)) +
+  geom_violin() +
+  ggtitle("Chloramines")
+```
+
+```{r}
+ggplot(clean_water, aes(x = potable, y = Sulfate)) +
+  geom_violin() +
+  ggtitle("Sulfate")
+```
+
+```{r}
+ggplot(clean_water, aes(x = potable, y = Conductivity)) +
+  geom_violin() +
+  ggtitle("Conductivity")
+```
+
+```{r}
+ggplot(clean_water, aes(x = potable, y = Organic_carbon)) +
+  geom_violin() +
+  ggtitle("Organic Carbon")
+```
+
+```{r}
+ggplot(clean_water, aes(x = potable, y = Trihalomethanes)) +
+  geom_violin() +
+  ggtitle("Trihalomethanes")
+```
+
+```{r}
+ggplot(clean_water, aes(x = potable, y = Turbidity)) +
+  geom_violin() +
+  ggtitle("Turbidity")
+```
+
+## Decision tree
 
 ### k-fold cross validation
 
 ```{r}
-water_folds <- vfold_cv(water_train, v = 20, strata = potable)
+water_folds <- vfold_cv(water_train, v = 50, strata = potable)
 ```
 
 ### Decision tree workflow and grid
@@ -135,7 +203,7 @@ decision_tree_workflow <- workflow() %>%
 decision_tree_grid <- grid_random(parameters(decision_tree_model), size = 20)
 ```
 
-### Tune the model
+### Tune the decision tree
 
 ```{r}
 doParallel::registerDoParallel()
@@ -148,7 +216,7 @@ decision_tree_tuning <- decision_tree_workflow %>%
   )
 ```
 
-### Fit the best model
+### Fit the best model decision tree
 
 ```{r}
 best_decision_tree_model <- decision_tree_tuning %>%
@@ -161,16 +229,15 @@ decision_tree_final_fit <- final_decision_tree_workflow %>%
   last_fit(split = water_split)
 ```
 
-### Final decision tree model assesment
+### Final decision tree assesment
+
+The decision tree ROC AUC of 0.59 is not good. It is barely better than a coin toss!
 
 ```{r}
 decision_tree_final_fit %>%
-  collect_metrics()
+  collect_metrics() %>%
+  knitr::kable()
 ```
-
-### Final ROC curve
-
-Not too great...an ROC AUC of 0.59 is barely better than a coin toss.
 
 ```{r}
 decision_tree_final_fit %>%
