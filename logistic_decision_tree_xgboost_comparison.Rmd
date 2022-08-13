@@ -110,7 +110,7 @@ ggplot(water_missing, aes(x = variable, y = percent_missing)) +
 
 ### Transform `Potability` into a factor
 
-Second, I changed the `potability` column into a factor with two levels of `potable` and `non_potable`. I am training the models to predict when a water sample is drinkable, so the first level is the event of interest.
+Second, I changed the `potability` column into a factor with two levels of `potable` and `not_potable`. I am training the models to predict when a water sample is drinkable, so the first level is the event of interest.
 
 ```{r}
 water_2 <- water %>%
