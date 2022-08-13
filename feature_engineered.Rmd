@@ -5,7 +5,19 @@ date: "2022-08-12"
 output: html_document
 ---
 
-# Water potability modeling
+# Water Potability
+
+In this post, I explore a dataset with observations of water sample properties and their corresponding drinkability. The dataset is from [Aditya Kadiwal on Kaggle](https://www.kaggle.com/datasets/adityakadiwal/water-potability). In this analysis, I compare the performance of logistic, decision tree, and xgboost classification models by tracking each model's ROC AUC metric. The xgboost model wins.
+
+In this post, I use the R tidymodels framework. Tidymodels aims to unify models and modeling engines to streamline machine learning workflows under a consistent interface. It contains libraries for sampling, feature engineering, model creation, model fitting, model tuning, and result evaluation. Here, I use the following model and engine combinations:
+
+| **Model** | **Engine** |
+|---|---|
+| Logistic | `glm` |
+| Decision tree | `rpart` |
+| Xgboost | `xgboost` |
+
+Tidymodels allows me to handle these configurations in similar ways, which makes it easier to compare the results of the models.
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
@@ -15,7 +27,7 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ### Required libraries
 
-```{r}
+```{r, echo=TRUE, results='hide'}
 library(readr)
 library(dplyr)
 library(tidyr)
@@ -41,6 +53,23 @@ set.seed(123)
 
 ## Initial data load
 
+The dataset contains 3276 rows of data, which I split into 2457 rows for training and 819 rows for testing. All observations have one categorical classification variable and nine numeric predictor variables.
+
+According to the [Kaggle post](https://www.kaggle.com/datasets/adityakadiwal/water-potability), the variable meanings are:
+
+| **Variable** | **Meaning** |
+|---|---|
+| pH | pH of water (0 to 14). |
+| Hardness | Capacity of water to precipitate soap in mg/L. |
+| Solids | Total dissolved solids in ppm. |
+| Chloramines | Amount of Chloramines in ppm. |
+| Sulfate | Amount of Sulfates dissolved in mg/L. |
+| Conductivity | Electrical conductivity of water in μS/cm. |
+| Organic_carbon | Amount of organic carbon in ppm. |
+| Trihalomethanes | Amount of Trihalomethanes in μg/L. |
+| Turbidity | Measure of light emitting property of water in NTU. |
+| Potability | Indicates if water is safe for human consumption. Potable=1 and Not potable=0 |
+
 ```{r}
 water <- read_csv("data/water_potability.csv")
 knitr::kable(head(water))
@@ -48,9 +77,11 @@ knitr::kable(head(water))
 
 ## Feature engineering
 
+For this analysis, I made two changes to the dataset.
+
 ### Visualizing number of missing values.
 
-Modified from [https://towardsdatascience.com/missing-value-visualization-with-tidyverse-in-r-a9b0fefd2246](https://towardsdatascience.com/missing-value-visualization-with-tidyverse-in-r-a9b0fefd2246)
+First, I had to fill in many missing values. I modified the approach in the article [Missing Value Visualization](https://towardsdatascience.com/missing-value-visualization-with-tidyverse-in-r-a9b0fefd2246) to create a visualization of the percent of missing values for three dataset columns.
 
 ```{r}
 water_total_rows = nrow(water)
@@ -73,11 +104,12 @@ knitr::kable(water_missing)
 ```{r}
 ggplot(water_missing, aes(x = variable, y = percent_missing)) +
   geom_col()
+  # Add a label indicating higher is worse.
 ```
 
-### Turn potability into a factor
+### Transform `Potability` into a factor
 
-Call the factor `potable`. The event of interest, potable water, is the first level of the factor.
+Second, I changed the `potability` column into a factor with two levels of `potable` and `non_potable`. I am training the models to predict when a water sample is drinkable, so the first level is the event of interest.
 
 ```{r}
 water_2 <- water %>%
@@ -94,16 +126,18 @@ water_2 <- water %>%
 knitr::kable(head(water_2))
 ```
 
-### Train test split
+### Train/test split
+
+I split the data into 75% for training and 25% for testing. I use the same train/test split across all models in this comparison.
 
 ```{r}
 water_split <- initial_split(water_2, prop = 0.75, strata = potable)
 water_train <- training(water_split)
 ```
 
-### Recipe to preprocess data and fill missing values
+### Filling missing values with k nearest neighbors (kNN)
 
-- Handle missing values with kNN
+I use kNN imputation to fill the missing values in the data.
 
 ```{r}
 clean_water_recipe <- recipe(potable ~ ., data = water_train) %>%
@@ -122,7 +156,7 @@ clean_water <- clean_water_recipe %>%
 
 ### How many observations are in class?
 
-There are many more observations that are not potable.
+More of the observations are of non-potable water samples. I suspect this made it harder to train the models on examples of potable water.
 
 ```{r}
 clean_water_class_count <- clean_water %>%
@@ -139,6 +173,8 @@ ggplot(clean_water_class_count, aes(x = potable, y = class_count)) +
 ```
 
 ### Distributions variables depending on potability
+
+After filling the missing values with kNN, I made violin plots lining up distributions for each variable depending on whether they were from potable samples.
 
 ```{r}
 ggplot(clean_water, aes(x = potable, y = ph)) +
@@ -194,15 +230,29 @@ ggplot(clean_water, aes(x = potable, y = Turbidity)) +
   ggtitle("Turbidity")
 ```
 
-## k-fold cross validation
+## Cross validation and evaluation metrics
+
+I use the same k-fold cross validation and evaluation metrics for all models in this post.
+
+### k-fold cross validation
+
+I use 20 folds stratified by the `potable` outcome variable for cross-validation.
 
 ```{r}
 water_folds <- vfold_cv(water_train, v = 20, strata = potable)
 ```
 
-## Logistic regression
+### Evaluation metrics
 
-First, I will start with a basic logistic regression as a baseline.
+I gather ROC AUC, sensitivity, and specificity metrics for each fold and hyperparameter combination during training.
+
+```{r}
+# TODO: Fill this in
+```
+
+## Logistic classifier
+
+I fit a logistic classifier first to establish a baseline of performance that the other models should exceed. There are no hyperparameters to configure on the logistic model, so I don't have a tuning step.
 
 ### Create and fit the logistic model
 
@@ -216,6 +266,8 @@ logistic_last_fit <- logistic_model %>%
 ```
 
 ### Evaluate logistic performance
+
+The ROC AUC curve lines up mainly along the diagonal for the logistic classifier, so the classification performance is about the same as a coin toss. That's pretty bad and won't be hard to exceed using the other models.
 
 ```{r}
 logistic_last_fit_metrics <- logistic_last_fit %>%
@@ -236,7 +288,10 @@ logistic_last_fit_results %>%
   roc_curve(truth = potable, .pred_potable) %>%
   autoplot()
 ```
-## Decision tree
+
+## Decision tree classifier
+
+The second classifier I trained was a decision tree. Here, there were `cost_complexity`, `tree_depth`, and `min_n` hyperparameters to tune. I use k-fold cross validation and a simple grid search to tune these hyperparameters.
 
 ### Decision tree workflow and grid
 
@@ -271,6 +326,8 @@ decision_tree_tuning <- decision_tree_workflow %>%
 
 ### Fit the best decision tree
 
+I select the top-performing decision tree based on the ROC AUC metric.
+
 ```{r}
 best_decision_tree_model <- decision_tree_tuning %>%
   select_best(metric = "roc_auc")
@@ -282,9 +339,9 @@ decision_tree_final_fit <- final_decision_tree_workflow %>%
   last_fit(split = water_split)
 ```
 
-### Final decision tree assesment
+### Evaluate decision tree performance
 
-The decision tree ROC AUC of 0.62 is not good. It is barely better than a coin toss!
+The decision tree's ROC AUC is 0.62, which, while better than the logistic classifier, is still not very good.
 
 ```{r}
 decision_tree_final_fit_metrics <- decision_tree_final_fit %>%
@@ -305,6 +362,8 @@ decision_tree_final_fit %>%
 ```
 
 ## xgboost
+
+The third classifier I trained was an xgboost model. Here, there were the `trees`, `min_n`, `tree_depth`, `learn_rate`, `loss_reduction`, and `sample_size` hyperparameters to tune. I tune these hyperparameters with a random grid search.
 
 Define the model and the workflow to go with it.
 
@@ -355,9 +414,9 @@ xgboost_final_fit <- final_xgboost_workflow %>%
   last_fit(split = water_split)
 ```
 
-### Final xgboost assesment
+### Evaluate xgboost performance
 
-An ROC AUC of 0.66 is better than the decision tree's 0.62, but not by much, unfortunately.
+With a ROC AUC of 0.66, the xgboost outperforms the decision tree, but not by much.
 
 ```{r}
 xgboost_final_fit_metrics <- xgboost_final_fit %>%
@@ -379,7 +438,7 @@ xgboost_final_fit %>%
 
 ## Final comparison
 
-### Plot of AUC_ROC for xgboost and decision tree
+I plotted the ROC AUC metrics for the final comparison for all three models. The xgboost model is the best, followed by the decision tree and logistic models.
 
 ```{r}
 comparison <- tibble(
@@ -403,4 +462,9 @@ ggplot(comparison, aes(x = model, y = roc_auc)) +
   geom_col() +
   ggtitle("Comparison of xgboost and decision tree ROC AUC metrics") +
   labs(y = "ROC AUC")
+  # TODO indicate that higher is better
 ```
+
+## Conclusion and next steps
+
+My feature engineering only included kNN missing value imputation. If I were to revisit this analysis, I would explore other feature engineering options to improve the quality of the input data.
