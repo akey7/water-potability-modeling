@@ -119,9 +119,25 @@ clean_water <- clean_water_recipe %>%
   bake(new_data = water_2)
 ```
 
-### Distributions variables depending on potability
+### How many observations are in class?
 
-Visualize these as violin plots.
+There are many more observations that are not potable.
+
+```{r}
+clean_water_class_count <- clean_water %>%
+  group_by(potable) %>%
+  summarize(class_count = n())
+
+knitr::kable(clean_water_class_count)
+```
+
+```{r}
+ggplot(clean_water_class_count, aes(x = potable, y = class_count)) +
+  geom_col() +
+  ggtitle("Class count in entire dataset")
+```
+
+### Distributions variables depending on potability
 
 ```{r}
 ggplot(clean_water, aes(x = potable, y = ph)) +
@@ -177,13 +193,49 @@ ggplot(clean_water, aes(x = potable, y = Turbidity)) +
   ggtitle("Turbidity")
 ```
 
-## Decision tree
-
-### k-fold cross validation
+## k-fold cross validation
 
 ```{r}
 water_folds <- vfold_cv(water_train, v = 20, strata = potable)
 ```
+
+## Logistic regression
+
+First, I will start with a basic logistic regression as a baseline.
+
+### Create and fit the logistic model
+
+```{r}
+logistic_model <- logistic_reg() %>%
+  set_engine("glm") %>%
+  set_mode("classification")
+
+logistic_last_fit <- logistic_model %>%
+  last_fit(potable ~ ., split = water_split)
+```
+
+### Evaluate logistic performance
+
+```{r}
+logistic_last_fit_metrics <- logistic_last_fit %>%
+  collect_metrics()
+
+logistic_last_fit_roc_auc <- logistic_last_fit_metrics %>%
+  filter(.metric == "roc_auc") %>%
+  pull(.estimate)
+
+knitr::kable(logistic_last_fit_metrics)
+```
+
+```{r}
+logistic_last_fit_results <- logistic_last_fit %>%
+  collect_predictions()
+
+logistic_last_fit_results %>%
+  roc_curve(truth = potable, .pred_potable) %>%
+  autoplot()
+```
+## Decision tree
 
 ### Decision tree workflow and grid
 
@@ -234,9 +286,14 @@ decision_tree_final_fit <- final_decision_tree_workflow %>%
 The decision tree ROC AUC of 0.62 is not good. It is barely better than a coin toss!
 
 ```{r}
-decision_tree_final_fit %>%
-  collect_metrics() %>%
-  knitr::kable()
+decision_tree_final_fit_metrics <- decision_tree_final_fit %>%
+  collect_metrics()
+
+decision_tree_final_fit_roc_auc <- decision_tree_final_fit_metrics %>%
+  filter(.metric == "roc_auc") %>%
+  pull(.estimate)
+  
+knitr::kable(decision_tree_final_fit_metrics)
 ```
 
 ```{r}
@@ -299,12 +356,17 @@ xgboost_final_fit <- final_xgboost_workflow %>%
 
 ### Final xgboost assesment
 
-An ROC AUC of 0.66 is better than the decision tree's 0.62, but not by much, unfortuantely
+An ROC AUC of 0.66 is better than the decision tree's 0.62, but not by much, unfortunately.
 
 ```{r}
-xgboost_final_fit %>%
-  collect_metrics() %>%
-  knitr::kable()
+xgboost_final_fit_metrics <- xgboost_final_fit %>%
+  collect_metrics()
+
+xgboost_final_fit_roc_auc <- xgboost_final_fit_metrics %>%
+  filter(.metric == "roc_auc") %>%
+  pull(.estimate)
+
+knitr::kable(xgboost_final_fit_metrics)
 ```
 
 ```{r}
@@ -312,4 +374,28 @@ xgboost_final_fit %>%
   collect_predictions() %>%
   roc_curve(truth = potable, .pred_potable) %>%
   autoplot()
+```
+
+## Final comparison
+
+### Plot of AUC_ROC for xgboost and decision tree
+
+```{r}
+comparison <- tibble(
+    model = c("xgboost", "decision tree", "logistic"),
+    roc_auc = c(
+      xgboost_final_fit_roc_auc, 
+      decision_tree_final_fit_roc_auc,
+      logistic_last_fit_roc_auc
+    )
+  ) %>%
+  arrange(desc(roc_auc))
+
+knitr::kable(comparison)
+```
+
+```{r}
+ggplot(comparison, aes(x = model, y = roc_auc)) +
+  geom_col() +
+  ggtitle("Comparison of xgboost and decision tree ROC AUC metrics")
 ```
