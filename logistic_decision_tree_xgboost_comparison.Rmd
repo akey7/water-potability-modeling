@@ -319,11 +319,11 @@ decision_tree_grid <- grid_random(parameters(decision_tree_model), size = 10)
 
 ```{r}
 # For M1 processor
-# cl <- parallel::makePSOCKcluster(4)
-# doParallel::registerDoParallel(cl)
+cl <- parallel::makePSOCKcluster(4)
+doParallel::registerDoParallel(cl)
 
 # For Intel processor
-doParallel::registerDoParallel()
+# doParallel::registerDoParallel()
 
 decision_tree_tuning <- decision_tree_workflow %>%
   tune_grid(
@@ -401,11 +401,11 @@ xgboost_grid <- grid_random(parameters(xgboost_model), size = 10)
 
 ```{r}
 # For M1 processor
-# cl <- parallel::makePSOCKcluster(4)
-# doParallel::registerDoParallel(cl)
+cl <- parallel::makePSOCKcluster(4)
+doParallel::registerDoParallel(cl)
 
 # For Intel processor
-doParallel::registerDoParallel()
+# doParallel::registerDoParallel()
 
 xgboost_tuning <- xgboost_workflow %>%
   tune_grid(
